@@ -1,179 +1,163 @@
 # YDataQuote
 
-On-demand Yahoo Finance API for up to 10 symbols per call. Fetch intraday bars,
-historical bars, or regular-market price snapshots through a shared HTTP/SOCKS5
-proxy pool. **No hourly quotas. No stock database or bulk prefetching.**
+On-demand latest prices and historical **close-price series**, using the Yahoo
+Finance Spark endpoint through Decodo. Based on the attached
+`decodo_batched_prices_fixed_colab.py`; its original is retained under `reference/`.
+No public proxy pool, OHLCV, database, scheduled fetches, or hourly quotas.
 
-This is a first runnable implementation for testing, not a proven production feed.
-The included public proxy candidates passed earlier user-run tests; they are not
-assumed to work now. A successful API connection does not guarantee Yahoo data.
+## Request contract
 
-## Start locally
+- Two separate endpoints: `GET /v1/quotes` and `GET /v1/history`.
+- `symbols`: required comma-separated list, 1–20 entries, normalized to uppercase.
+  Duplicates are removed. More than 20 supplied entries are rejected.
+- One authenticated, validated and configured data request makes **one Decodo
+  POST containing one multi-symbol Yahoo Spark URL**, including on upstream
+  failure. There are no retries, redirects, per-symbol requests, cookie/crumb
+  calls, or fallback endpoints. Validation/auth/configuration failures make zero
+  calls. Health and documentation make zero calls.
+- This counts client POST attempts, not guaranteed billable credits. Decodo's
+  internal retries/accounting and upstream availability are outside this API.
+- Every distinct requested symbol has a result, including omitted/invalid symbols.
+  HTTP 200 means the response was processed, not that every symbol succeeded.
 
-Requires Python 3.12+.
+### Latest prices
+
+```http
+GET /v1/quotes?symbols=AAPL,MSFT
+```
+
+Requests `range=1d&interval=1m&includePrePost=true`. Selects the newest valid
+regular/pre/post market metadata price or one-minute candle close. Results include
+`price`, `price_time_utc`, `price_age_seconds`, `price_source`, `market_session`,
+`currency`, and `exchange_delay_minutes` where available. Candle-derived session
+is `unknown`. Prices may be delayed or from a previous session. Candle timestamps
+identify an interval, not necessarily the precise trade time.
+
+### Historical close prices
+
+```http
+GET /v1/history?symbols=AAPL,MSFT&period=5y&interval=1d
+GET /v1/history?symbols=AAPL,MSFT&start=2023-01-01&end=2026-11-01&interval=1d
+```
+
+| Parameter | Meaning |
+|---|---|
+| `symbols` | Required; maximum 20 comma-separated entries |
+| `period` | `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max` |
+| `start`, `end` | Supply both instead of period; UTC dates, start inclusive and end exclusive |
+| `interval` | `1m`, `5m`, `15m`, `30m`, `60m`, `1h`, `1d`, `1wk`, `1mo`; default `1d` |
+| `prepost` | Include extended-hours series; default `false` |
+
+Date mode forwards Unix `period1`/`period2` to Spark, then filters returned points
+to `[start,end)`. Period mode forwards `range`. No automatic date expansion,
+range splitting, resampling or interval substitution. Yahoo may reject a
+combination or return less history than requested. **Live custom-date behavior
+and long-period coverage must be confirmed using your Decodo account before
+advertising them.** The code does not assert complete coverage; each history
+result has `coverage_verified: false`. Returned bars retain Yahoo close values
+without additional adjustment. The latest bar may still be forming.
+
+Each history result contains `data` objects with `timestamp` (Unix seconds),
+`time_utc`, and `close`. Missing/invalid values are omitted with a `partial` status
+and warnings; no data yields `error`. No open/high/low/volume fields are returned.
+
+Example response shape (illustrative data):
+
+```json
+{
+  "fetched_at_utc": "2026-11-02T00:00:00+00:00",
+  "decodo_calls": 1,
+  "requested_symbols": 1,
+  "successful_symbols": 1,
+  "results": [{
+    "symbol": "AAPL",
+    "status": "ok",
+    "currency": "USD",
+    "exchange_timezone": "America/New_York",
+    "data": [{"timestamp": 1704067200, "time_utc": "2024-01-01T00:00:00+00:00", "close": 100}],
+    "coverage_verified": false,
+    "warnings": [],
+    "error": null
+  }]
+}
+```
+
+HTTP errors: `401` invalid credentials, `422` invalid input, `503` missing server
+configuration, `502` upstream HTTP/timeout/format failure. Upstream failures never
+trigger another Decodo request. Raw upstream bodies and credentials are not
+included in errors. Data responses use `Cache-Control: no-store`.
+
+## Run locally
+
+Python 3.12 recommended. Install dependencies, set keys, and run:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
+export DECODO_API_KEY='your-decodo-key'
+export API_KEY='your-private-test-key'
+uvicorn app:app --reload
 ```
 
-Windows activation: `.venv\Scripts\activate`.
-Open http://127.0.0.1:8000/docs for interactive API testing.
-The default uses `data/proxies.sample.txt`, containing 32 credential-free public
-candidates: 16 passed 4/4 and 16 passed 3/4 requests in the October 28, 2026 test.
-These measurements are historical and are not a reliability guarantee.
-
-Or start with Docker:
+`.env.example` documents variables; the app does not automatically load `.env`.
 
 ```bash
-docker compose up --build
+curl 'http://127.0.0.1:8000/v1/quotes?symbols=AAPL,MSFT' -H "X-API-Key: $API_KEY"
+curl 'http://127.0.0.1:8000/v1/history?symbols=AAPL,MSFT&period=1y&interval=1d' -H "X-API-Key: $API_KEY"
 ```
 
-The Compose port binds to localhost. Set `API_KEY` and deliberately configure
-network exposure/TLS before making this available to other users. Authentication
-is optional for local testing; it does not introduce an hourly quota.
+URL-encode special symbol characters: `M&M.NS` becomes `M%26M.NS` in query URLs.
+No user-supplied target URL, Decodo key, or proxy credentials are accepted.
 
-## Intraday
+## Deploy on Vercel
 
-```bash
-curl -X POST http://127.0.0.1:8000/v1/history \
-  -H 'Content-Type: application/json' \
-  -d '{"symbols":["AAPL","MSFT"],"interval":"5m","range":"5d"}'
-```
+1. Import `mukundan1989/ydataquote` into Vercel with repository root as root directory.
+2. Use the detected FastAPI framework (`app.py` exports `app`). Install dependencies
+   from `requirements.txt`; no frontend build/output directory is needed.
+3. Add `DECODO_API_KEY` and a private `API_KEY` in Vercel environment variables.
+   Add `RAPIDAPI_PROXY_SECRET` when connecting RapidAPI. Redeploy after changes.
+4. The included `vercel.json` sets a 60-second function duration. The Decodo client
+   has a 10-second connection timeout and 45-second read timeout; slow requests
+   can still be terminated by Vercel or the gateway. There are no retries.
+5. Visit `/health`, `/docs`, and `/openapi.json`. Health is process-only and never
+   tests Yahoo. Test both data endpoints and date/period combinations live.
+6. Ensure the RapidAPI gateway can reach the production API through any Vercel
+   deployment protection settings. Application-level authentication remains required.
 
-## Historical
+Official deployment documentation: https://vercel.com/docs/frameworks/backend/fastapi
 
-```bash
-curl -X POST http://127.0.0.1:8000/v1/history \
-  -H 'Content-Type: application/json' \
-  -d '{"symbols":["AAPL","MSFT"],"interval":"1d","start":"2023-01-01","end":"2026-11-02"}'
-```
+## Connect RapidAPI
 
-`end` is **exclusive**. Date-only and timezone-free inputs are interpreted as UTC;
-use ISO-8601 offsets when you need a specific local-time boundary. Supply either
-`range` or both `start` and `end`. Without either, range defaults to `1mo`.
+1. Add an API in the Provider Dashboard and import `openapi.json` from this repo
+   (or download the live `/openapi.json`).
+2. Set the deployed production Vercel URL as the API's base URL.
+3. Configure the two GET endpoints and describe the 20-symbol limit and close-only
+   response. The specification lists the accepted query parameters.
+4. Copy the proxy secret from RapidAPI's Security settings to the Vercel
+   `RAPIDAPI_PROXY_SECRET` environment variable and redeploy.
+5. Subscribers use their RapidAPI key; RapidAPI adds `X-RapidAPI-Proxy-Secret` when
+   forwarding. That secret is not a subscriber parameter. The imported schema's
+   `X-API-Key` option is for private direct testing only; remove it from the public
+   listing if needed. To disallow direct testing, delete `API_KEY` after setup.
+6. Test quotes, period history, custom dates, and partial failures through the
+   gateway before publishing. Configure subscription pricing separately; this app
+   implements no hourly rate limit.
 
-Intervals: `1m`, `2m`, `5m`, `15m`, `30m`, `60m`, `90m`, `1h`, `1d`, `5d`, `1wk`,
-`1mo`, `3mo`. Range: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`,
-`ytd`, `max`. Optional `prepost` defaults to false.
+Data endpoints require at least one configured credential. With both configured,
+a matching proxy secret OR private test key authorizes the request. Public docs
+and health do not authorize paid upstream fetches. Keep all real keys out of Git.
 
-Yahoo imposes interval/date availability constraints. The API forwards validly
-formed requests and reports Yahoo rejections; it does not promise unlimited
-intraday history or silently substitute a different interval. There is no range
-splitting in this version.
-
-## Price snapshots
-
-```bash
-curl -X POST http://127.0.0.1:8000/v1/quotes \
-  -H 'Content-Type: application/json' \
-  -d '{"symbols":["AAPL","MSFT","TCS.NS"]}'
-```
-
-Uses Yahoo chart metadata (`regularMarketPrice`, `regularMarketTime`). This is
-not streaming data or bid/ask; the price may be delayed or from the last session.
-
-## Response contract
-
-A processed batch returns HTTP 200 with one result per distinct symbol:
-
-- `status: ok`: usable data returned.
-- `status: partial`: invalid/duplicate bars were omitted; inspect `warnings`.
-- `status: error`: `error.code` and a sanitized explanation; no fabricated bars.
-
-Every result has `attempts` and `elapsed_seconds`. Successes include `data` and
-an opaque `proxy_id`. History includes UTC bar timestamps, OHLCV and nullable
-`adj_close`. Yahoo values are retained as supplied, not additionally adjusted.
-`coverage_verified: false` explicitly means missing exchange sessions/bars are
-not detected. The most recent candle may still be forming.
-
-The summary counts `ok`, `partial`, and `error`. **HTTP 200 alone does not mean all
-symbols succeeded.** Invalid inputs return 422, failed API authentication 401,
-and a full in-memory work queue/no configured proxies 503.
-
-## Scheduling and failure handling
-
-- Default: up to 16 simultaneous upstream attempts across different proxy hosts.
-- One active request per proxy hostname, across all users and all ports on that
-  hostname; at least one second after completion before that host is used again.
-- Up to three attempts per symbol, each on a different hostname.
-- Connection failures temporarily quarantine a route (default 30 seconds).
-- Proxy CONNECT 429 and Yahoo HTTP 429 both trigger a pool-wide cooldown, at
-  least 60 seconds and respecting a supplied Retry-After. Already-started work
-  may finish. New attempts do not rotate around that cooldown.
-- Each symbol has a 45-second deadline, including time waiting for a route.
-- At most 200 outstanding symbols, including queued and active work. Excess
-  batches get 503, not an hourly quota. Admission is released on completion.
-- No direct Yahoo fallback, proxy URLs supplied by API callers, persistent price
-  store, scheduled scraping, or hourly accounting.
-
-**Use exactly one Uvicorn worker and one instance for this version.** Pool leases,
-spacing, queue capacity, and cooldowns are process-local. Multiple processes or
-replicas would need shared coordination (for example Redis), which is not
-implemented. Different hostnames may still share a provider's account limits or
-an external exit IP; the service cannot infer that automatically.
-
-## Configure proxies and settings
-
-Create a private `proxies.txt` (gitignored), one URL per line:
-
-```text
-http://HOST:PORT
-http://USERNAME:PASSWORD@HOST:PORT
-socks5://HOST:PORT
-```
-
-URL-encode special characters in credentials. Bare IP:port is treated as HTTP.
-Comments beginning with `#` are allowed. Duplicate endpoints are removed. Private
-literal IPs are rejected. Proxy configuration is trusted server-side input.
-No credentials are printed in API results or proxy statistics.
-
-```bash
-export PROXY_FILE=proxies.txt
-export API_KEY='choose-your-own-key'
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
-```
-
-Add `-H 'X-API-Key: your-key'` to API calls when configured. `.env.example` is a
-reference: local Uvicorn does not automatically load it. Restart after changing
-proxy configuration. For Docker, mount your file read-only and set `PROXY_FILE`
-to the container path. Never commit paid proxy credentials or API keys.
-
-| Environment variable | Default |
-|---|---:|
-| `PROXY_FILE` | `data/proxies.sample.txt` |
-| `API_KEY` | Empty (local auth disabled) |
-| `MAX_CONCURRENT_FETCHES` | 16 |
-| `PROXY_GAP_SECONDS` | 1 (minimum 1) |
-| `MAX_ATTEMPTS` | 3 |
-| `REQUEST_DEADLINE_SECONDS` | 45 |
-| `PROXY_COOLDOWN_SECONDS` | 30 |
-| `MAX_PENDING_SYMBOLS` | 200 |
-
-`GET /health` checks API process health, not live Yahoo availability.
-`GET /v1/proxies` shows opaque IDs, attempts, successes, failures, latency, and
-cooldowns. `verified_in_this_process` means at least one successful fetch since
-startup, not guaranteed current health. Statistics reset when the process restarts.
-Both data endpoints and proxy statistics use the optional API key. Health/docs
-remain public. No browser CORS access is enabled by default.
-
-## Check it
+## Verification
 
 ```bash
 pip install -r requirements-dev.txt
 python -m pytest -q
-python scripts/smoke.py --url http://127.0.0.1:8000 --symbols AAPL,MSFT --interval 5m --range 5d
 ```
 
-Tests mock Yahoo and proxy failures; they cover validation, intraday timestamps,
-per-host spacing, concurrency limits, distinct-host retries, cancellation/deadline
-cleanup, global 429 cooldown, queue admission, auth, and secret redaction. GitHub
-Actions runs them on pushes and PRs without live proxy requests or secrets.
-The smoke command uses real upstream requests and exits 2 if any symbol fails.
+Tests mock Decodo: verify 1/20-symbol call counts, date forwarding/filtering,
+invalid requests making zero calls, missing/mismatched symbols, parsing, auth,
+secret redaction, and no retries on upstream failures. They consume no credits.
+Live upstream access, custom-date support, data completeness, gateway timeouts,
+and billing require deployment/account testing; mock tests do not establish them.
 
-Free proxies and Yahoo's unofficial chart endpoint can fail or change. Successful
-unit tests are not a live availability or capacity benchmark. Before serving
-other users, run realistic mixed intraday/history load tests on the deployment
-host and verify applicable Yahoo/exchange data-use permissions.
+The original Colab reference is not the deployed entrypoint and is excluded from
+Vercel's function bundle. No credentials are committed.

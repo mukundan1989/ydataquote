@@ -1,0 +1,494 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "YDataQuote",
+    "description": "Latest available prices and historical close series for 1\u201320 symbols through Yahoo Spark. One admitted data request makes one Decodo POST; no retries, OHLCV or hourly quotas. Prices may be delayed. Upstream availability and historical coverage are not guaranteed.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health",
+        "description": "Process health only; makes no Decodo call.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/quotes": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "Quotes",
+        "description": "Latest timestamped quote metadata or latest valid one-minute close, including extended hours.",
+        "operationId": "quotes_v1_quotes_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "symbols",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26.",
+              "title": "Symbols"
+            },
+            "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/history": {
+      "get": {
+        "tags": [
+          "Prices"
+        ],
+        "summary": "History",
+        "description": "Close-price series. Supply period OR both start/end. Yahoo retention/interval limits apply.\n\nDate mode forwards period1/period2 to Spark and filters returned points to [start,end).\nCoverage is not verified; unsupported requests fail without fallback or extra calls.",
+        "operationId": "history_v1_history_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Use instead of start/end dates",
+              "title": "Period",
+              "$ref": "#/components/schemas/Period",
+              "nullable": true
+            },
+            "description": "Use instead of start/end dates"
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Inclusive UTC date",
+              "title": "Start",
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "description": "Inclusive UTC date"
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Exclusive UTC date",
+              "title": "End",
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "description": "Exclusive UTC date"
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Interval",
+              "default": "1d"
+            }
+          },
+          {
+            "name": "prepost",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Prepost"
+            }
+          },
+          {
+            "name": "symbols",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26.",
+              "title": "Symbols"
+            },
+            "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ClosePoint": {
+        "properties": {
+          "timestamp": {
+            "type": "integer",
+            "title": "Timestamp"
+          },
+          "time_utc": {
+            "type": "string",
+            "title": "Time Utc"
+          },
+          "close": {
+            "type": "number",
+            "title": "Close"
+          }
+        },
+        "type": "object",
+        "required": [
+          "timestamp",
+          "time_utc",
+          "close"
+        ],
+        "title": "ClosePoint"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistoryResponse": {
+        "properties": {
+          "fetched_at_utc": {
+            "type": "string",
+            "title": "Fetched At Utc"
+          },
+          "decodo_calls": {
+            "type": "integer",
+            "title": "Decodo Calls"
+          },
+          "requested_symbols": {
+            "type": "integer",
+            "title": "Requested Symbols"
+          },
+          "successful_symbols": {
+            "type": "integer",
+            "title": "Successful Symbols"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fetched_at_utc",
+          "decodo_calls",
+          "requested_symbols",
+          "successful_symbols",
+          "results"
+        ],
+        "title": "HistoryResponse"
+      },
+      "HistoryResult": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string",
+            "nullable": true
+          },
+          "exchange_timezone": {
+            "title": "Exchange Timezone",
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ClosePoint"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "coverage_verified": {
+            "type": "boolean",
+            "title": "Coverage Verified"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "status",
+          "data",
+          "coverage_verified",
+          "warnings"
+        ],
+        "title": "HistoryResult"
+      },
+      "Interval": {
+        "type": "string",
+        "enum": [
+          "1m",
+          "5m",
+          "15m",
+          "30m",
+          "60m",
+          "1h",
+          "1d",
+          "1wk",
+          "1mo"
+        ],
+        "title": "Interval"
+      },
+      "Period": {
+        "type": "string",
+        "enum": [
+          "1d",
+          "5d",
+          "1mo",
+          "3mo",
+          "6mo",
+          "1y",
+          "2y",
+          "5y",
+          "10y",
+          "ytd",
+          "max"
+        ],
+        "title": "Period"
+      },
+      "QuoteResponse": {
+        "properties": {
+          "fetched_at_utc": {
+            "type": "string",
+            "title": "Fetched At Utc"
+          },
+          "decodo_calls": {
+            "type": "integer",
+            "title": "Decodo Calls"
+          },
+          "requested_symbols": {
+            "type": "integer",
+            "title": "Requested Symbols"
+          },
+          "successful_symbols": {
+            "type": "integer",
+            "title": "Successful Symbols"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/QuoteResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fetched_at_utc",
+          "decodo_calls",
+          "requested_symbols",
+          "successful_symbols",
+          "results"
+        ],
+        "title": "QuoteResponse"
+      },
+      "QuoteResult": {
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "title": "Symbol"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "price": {
+            "title": "Price",
+            "type": "number",
+            "nullable": true
+          },
+          "price_time_utc": {
+            "title": "Price Time Utc",
+            "type": "string",
+            "nullable": true
+          },
+          "price_age_seconds": {
+            "title": "Price Age Seconds",
+            "type": "integer",
+            "nullable": true
+          },
+          "price_source": {
+            "title": "Price Source",
+            "type": "string",
+            "nullable": true
+          },
+          "market_session": {
+            "title": "Market Session",
+            "type": "string",
+            "nullable": true
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string",
+            "nullable": true
+          },
+          "exchange_delay_minutes": {
+            "title": "Exchange Delay Minutes",
+            "type": "integer",
+            "nullable": true
+          },
+          "error": {
+            "title": "Error",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "symbol",
+          "status"
+        ],
+        "title": "QuoteResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}
