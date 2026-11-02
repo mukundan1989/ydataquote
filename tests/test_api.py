@@ -227,3 +227,22 @@ def test_checked_in_rapidapi_spec_matches_live_builder():
     from pathlib import Path
     saved = json.loads((Path(__file__).resolve().parents[1] / 'openapi.json').read_text())
     assert saved == client.get('/rapidapi-openapi.json').json()
+
+
+
+def test_api_title_and_clean_endpoint_names():
+    for document in ['/openapi.json', '/rapidapi-openapi.json']:
+        schema = client.get(document).json()
+        assert schema['info']['title'] == 'Y Fin Latest Quote'
+        expected = {
+            '/v1/quotes': ('Latest Stock Quotes', 'LatestStockQuotes'),
+            '/v1/history': ('Historical Daily Close Prices', 'HistoricalDailyClosePrices'),
+        }
+        for path, (summary, operation_id) in expected.items():
+            operation = schema['paths'][path]['get']
+            assert operation['summary'] == summary
+            assert operation['operationId'] == operation_id
+            assert operation['tags'] == ['Stock Prices']
+    health = client.get('/openapi.json').json()['paths']['/health']['get']
+    assert health['summary'] == 'Health Check'
+    assert health['operationId'] == 'HealthCheck'

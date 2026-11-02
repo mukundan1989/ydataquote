@@ -1,4 +1,4 @@
-# YDataQuote
+# Y Fin Latest Quote
 
 On-demand latest prices and historical **close-price series**, using the Yahoo
 Finance Spark endpoint through Decodo. Based on the attached
@@ -146,6 +146,21 @@ Official deployment documentation: https://vercel.com/docs/frameworks/backend/fa
 Data endpoints require at least one configured credential. With both configured,
 a matching proxy secret OR private test key authorizes the request. Public docs
 and health do not authorize paid upstream fetches. Keep all real keys out of Git.
+
+## Endpoint names
+
+The API title is **Y Fin Latest Quote**. Display summaries and stable operation
+IDs are explicit, so imports do not use generated function/path names:
+
+| Path | Display summary | Operation ID |
+|---|---|---|
+| `/v1/quotes` | Latest Stock Quotes | `LatestStockQuotes` |
+| `/v1/history` | Historical Daily Close Prices | `HistoricalDailyClosePrices` |
+| `/health` | Health Check | `HealthCheck` |
+
+Data endpoints are grouped under **Stock Prices**. The repository name and
+existing Vercel URL stay the same. Reimport the updated specification in RapidAPI
+for the new metadata; existing listing names may need to be edited in its dashboard.
 
 ## API specifications
 

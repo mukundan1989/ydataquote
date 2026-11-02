@@ -14,7 +14,7 @@ from services.decodo import ConfigurationError, fetch_spark
 from services.spark import UpstreamError, parse_history, parse_quotes, utc
 from services.openapi import rapidapi_schema
 
-app = FastAPI(title='YDataQuote', version='1.0.0', description=(
+app = FastAPI(title='Y Fin Latest Quote', version='1.0.0', description=(
     'Latest available prices and historical close series for 1–20 symbols through Yahoo Spark. '
     'One admitted data request makes one Decodo POST; no retries, OHLCV or hourly quotas. '
     'Prices may be delayed. Upstream availability and historical coverage are not guaranteed.'))
@@ -127,19 +127,21 @@ async def no_cache(request, call_next):
     return response
 
 
-@app.get('/health', tags=['Health'])
+@app.get('/health', tags=['Health'], summary='Health Check', operation_id='HealthCheck')
 def health():
     """Process health only; makes no Decodo call."""
     return {'status': 'ok'}
 
 
-@app.get('/v1/quotes', response_model=QuoteResponse, dependencies=[Depends(authorize)], tags=['Prices'])
+@app.get('/v1/quotes', response_model=QuoteResponse, dependencies=[Depends(authorize)],
+         tags=['Stock Prices'], summary='Latest Stock Quotes', operation_id='LatestStockQuotes')
 def quotes(symbols: list[str] = Depends(parse_symbols)):
     """Latest timestamped quote metadata or latest valid one-minute close, including extended hours."""
     return run(symbols, dict(range='1d', interval='1m', includePrePost='true'))
 
 
-@app.get('/v1/history', response_model=HistoryResponse, dependencies=[Depends(authorize)], tags=['Prices'])
+@app.get('/v1/history', response_model=HistoryResponse, dependencies=[Depends(authorize)],
+         tags=['Stock Prices'], summary='Historical Daily Close Prices', operation_id='HistoricalDailyClosePrices')
 def history(symbols: list[str] = Depends(parse_symbols),
             period: Annotated[Period | None, Query(description='Use instead of start/end dates')] = None,
             start: Annotated[date | None, Query(description='Inclusive UTC date')] = None,
