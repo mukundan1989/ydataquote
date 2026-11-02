@@ -43,7 +43,6 @@ class QuoteResult(BaseModel):
     status: str
     price: float | None = None
     price_time_utc: str | None = None
-    price_age_seconds: int | None = None
     currency: str | None = None
     any_error: str | None = None
 

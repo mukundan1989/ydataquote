@@ -99,7 +99,7 @@ def parse_quotes(payload, symbols, now=None):
             continue
         stamp, _, price, source, session, meta = max(candidates, key=lambda x: (x[0], x[1]))
         results.append(dict(symbol=symbol, status='ok', price=price, price_time_utc=utc(stamp),
-                            price_age_seconds=round(now-stamp), currency=meta.get('currency'), any_error=None))
+                            currency=meta.get('currency'), any_error=None))
     return results
 
 

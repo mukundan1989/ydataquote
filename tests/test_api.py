@@ -134,7 +134,6 @@ def test_latest_timestamp_wins_and_missing_symbol():
     result = parse_quotes(payload(), ['AAPL', 'MISSING'], now=1704240060)
     assert result[0]['price'] == 104
     assert result[0]['price_time_utc'] == '2024-01-03T00:00:00+00:00'
-    assert result[0]['price_age_seconds'] == 60
     assert result[1]['status'] == 'error'
 
 
@@ -262,11 +261,11 @@ def test_subscriber_response_fields(upstream, endpoint):
     assert body['results'][0]['any_error'] is None
     assert body['results'][1]['any_error']
     for result in body['results']:
-        assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session'} & result.keys()
+        assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & result.keys()
     for document in ['/openapi.json', '/rapidapi-openapi.json']:
         schema = client.get(document).json()
         assert 'data_calls' in schema['components']['schemas']['QuoteResponse']['properties']
         for name in ['QuoteResult', 'HistoryResult']:
             properties = schema['components']['schemas'][name]['properties']
             assert 'any_error' in properties
-            assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session'} & properties.keys()
+            assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & properties.keys()

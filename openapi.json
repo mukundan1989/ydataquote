@@ -356,11 +356,6 @@
             "type": "string",
             "nullable": true
           },
-          "price_age_seconds": {
-            "title": "Price Age Seconds",
-            "type": "integer",
-            "nullable": true
-          },
           "currency": {
             "title": "Currency",
             "type": "string",

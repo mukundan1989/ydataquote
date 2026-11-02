@@ -28,7 +28,7 @@ GET /v1/quotes?symbols=AAPL,MSFT
 
 Requests `range=1d&interval=1m&includePrePost=true`. Selects the newest valid
 regular/pre/post market metadata price or one-minute candle close. Results include
-`price`, `price_time_utc`, `price_age_seconds`, `currency`, and `any_error`.
+`price`, `price_time_utc`, `currency`, and `any_error`.
 Prices may be delayed or from a previous session. Candle timestamps
 identify an interval, not necessarily the precise trade time.
 
