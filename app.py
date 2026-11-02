@@ -44,11 +44,8 @@ class QuoteResult(BaseModel):
     price: float | None = None
     price_time_utc: str | None = None
     price_age_seconds: int | None = None
-    price_source: str | None = None
-    market_session: str | None = None
     currency: str | None = None
-    exchange_delay_minutes: int | None = None
-    error: str | None = None
+    any_error: str | None = None
 
 
 class ClosePoint(BaseModel):
@@ -65,12 +62,12 @@ class HistoryResult(BaseModel):
     data: list[ClosePoint]
     coverage_verified: bool
     warnings: list[str]
-    error: str | None = None
+    any_error: str | None = None
 
 
 class BatchResponse(BaseModel):
     fetched_at_utc: str
-    decodo_calls: int
+    data_calls: int
     requested_symbols: int
     successful_symbols: int
 
@@ -116,7 +113,7 @@ def run(symbols, query, history=False, start=None, end=None):
         raise HTTPException(503, str(exc)) from None
     except UpstreamError as exc:
         raise HTTPException(502, str(exc)) from None
-    return dict(fetched_at_utc=utc(), decodo_calls=1, requested_symbols=len(symbols),
+    return dict(fetched_at_utc=utc(), data_calls=1, requested_symbols=len(symbols),
                 successful_symbols=sum(r['status'] in ('ok', 'partial') for r in results), results=results)
 
 

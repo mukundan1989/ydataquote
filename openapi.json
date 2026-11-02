@@ -192,9 +192,9 @@
             "type": "string",
             "title": "Fetched At Utc"
           },
-          "decodo_calls": {
+          "data_calls": {
             "type": "integer",
-            "title": "Decodo Calls"
+            "title": "Data Calls"
           },
           "requested_symbols": {
             "type": "integer",
@@ -215,7 +215,7 @@
         "type": "object",
         "required": [
           "fetched_at_utc",
-          "decodo_calls",
+          "data_calls",
           "requested_symbols",
           "successful_symbols",
           "results"
@@ -260,8 +260,8 @@
             "type": "array",
             "title": "Warnings"
           },
-          "error": {
-            "title": "Error",
+          "any_error": {
+            "title": "Any Error",
             "type": "string",
             "nullable": true
           }
@@ -306,9 +306,9 @@
             "type": "string",
             "title": "Fetched At Utc"
           },
-          "decodo_calls": {
+          "data_calls": {
             "type": "integer",
-            "title": "Decodo Calls"
+            "title": "Data Calls"
           },
           "requested_symbols": {
             "type": "integer",
@@ -329,7 +329,7 @@
         "type": "object",
         "required": [
           "fetched_at_utc",
-          "decodo_calls",
+          "data_calls",
           "requested_symbols",
           "successful_symbols",
           "results"
@@ -361,28 +361,13 @@
             "type": "integer",
             "nullable": true
           },
-          "price_source": {
-            "title": "Price Source",
-            "type": "string",
-            "nullable": true
-          },
-          "market_session": {
-            "title": "Market Session",
-            "type": "string",
-            "nullable": true
-          },
           "currency": {
             "title": "Currency",
             "type": "string",
             "nullable": true
           },
-          "exchange_delay_minutes": {
-            "title": "Exchange Delay Minutes",
-            "type": "integer",
-            "nullable": true
-          },
-          "error": {
-            "title": "Error",
+          "any_error": {
+            "title": "Any Error",
             "type": "string",
             "nullable": true
           }

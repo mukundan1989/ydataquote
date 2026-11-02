@@ -56,7 +56,7 @@ def test_exactly_one_post_for_batch(upstream, count, endpoint):
         query['period'] = '5y'
     response = get(endpoint, **query)
     assert response.status_code == 200
-    assert response.json()['decodo_calls'] == 1
+    assert response.json()['data_calls'] == 1
     assert len(response.json()['results']) == count
     session.post.assert_called_once()
     kwargs = session.post.call_args.kwargs
@@ -133,7 +133,7 @@ def test_health_docs_no_posts(upstream):
 def test_latest_timestamp_wins_and_missing_symbol():
     result = parse_quotes(payload(), ['AAPL', 'MISSING'], now=1704240060)
     assert result[0]['price'] == 104
-    assert result[0]['price_source'] == 'one_minute_close'
+    assert result[0]['price_time_utc'] == '2024-01-03T00:00:00+00:00'
     assert result[0]['price_age_seconds'] == 60
     assert result[1]['status'] == 'error'
 
@@ -246,3 +246,27 @@ def test_api_title_and_clean_endpoint_names():
     health = client.get('/openapi.json').json()['paths']['/health']['get']
     assert health['summary'] == 'Health Check'
     assert health['operationId'] == 'HealthCheck'
+
+
+
+@pytest.mark.parametrize('endpoint', ['/v1/quotes', '/v1/history'])
+def test_subscriber_response_fields(upstream, endpoint):
+    params = {'symbols': 'AAPL,MISSING'}
+    if endpoint.endswith('history'):
+        params['period'] = '1y'
+    response = get(endpoint, **params)
+    assert response.status_code == 200
+    body = response.json()
+    assert body['data_calls'] == 1
+    assert 'decodo_calls' not in body
+    assert body['results'][0]['any_error'] is None
+    assert body['results'][1]['any_error']
+    for result in body['results']:
+        assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session'} & result.keys()
+    for document in ['/openapi.json', '/rapidapi-openapi.json']:
+        schema = client.get(document).json()
+        assert 'data_calls' in schema['components']['schemas']['QuoteResponse']['properties']
+        for name in ['QuoteResult', 'HistoryResult']:
+            properties = schema['components']['schemas'][name]['properties']
+            assert 'any_error' in properties
+            assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session'} & properties.keys()

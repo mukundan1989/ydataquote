@@ -95,13 +95,11 @@ def parse_quotes(payload, symbols, now=None):
                 if valid_pair(price, stamp, now):
                     candidates.append((stamp, 0, price, 'one_minute_close', 'unknown', meta))
         if not candidates:
-            results.append(dict(symbol=symbol, status='error', error='No valid matching price returned'))
+            results.append(dict(symbol=symbol, status='error', any_error='No valid matching price returned'))
             continue
         stamp, _, price, source, session, meta = max(candidates, key=lambda x: (x[0], x[1]))
         results.append(dict(symbol=symbol, status='ok', price=price, price_time_utc=utc(stamp),
-                            price_age_seconds=round(now-stamp), price_source=source,
-                            market_session=session, currency=meta.get('currency'),
-                            exchange_delay_minutes=meta.get('exchangeDataDelayedBy')))
+                            price_age_seconds=round(now-stamp), currency=meta.get('currency'), any_error=None))
     return results
 
 
@@ -126,5 +124,5 @@ def parse_history(payload, symbols, start=None, end=None, now=None):
                             currency=meta.get('currency'), exchange_timezone=meta.get('exchangeTimezoneName'),
                             data=points, coverage_verified=False,
                             warnings=['Invalid or unpaired values were omitted'] if invalid else [],
-                            error=None if points else 'No valid matching close prices in the requested window'))
+                            any_error=None if points else 'No valid matching close prices in the requested window'))
     return results

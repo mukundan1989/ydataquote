@@ -28,9 +28,8 @@ GET /v1/quotes?symbols=AAPL,MSFT
 
 Requests `range=1d&interval=1m&includePrePost=true`. Selects the newest valid
 regular/pre/post market metadata price or one-minute candle close. Results include
-`price`, `price_time_utc`, `price_age_seconds`, `price_source`, `market_session`,
-`currency`, and `exchange_delay_minutes` where available. Candle-derived session
-is `unknown`. Prices may be delayed or from a previous session. Candle timestamps
+`price`, `price_time_utc`, `price_age_seconds`, `currency`, and `any_error`.
+Prices may be delayed or from a previous session. Candle timestamps
 identify an interval, not necessarily the precise trade time.
 
 ### Historical close prices
@@ -58,14 +57,15 @@ without additional adjustment. The latest bar may still be forming.
 
 Each history result contains `data` objects with `timestamp` (Unix seconds),
 `time_utc`, and `close`. Missing/invalid values are omitted with a `partial` status
-and warnings; no data yields `error`. No open/high/low/volume fields are returned.
+and warnings; no data yields status `error`. `any_error` is null on success or
+an explanatory message on failure. No open/high/low/volume fields are returned.
 
 Example response shape (illustrative data):
 
 ```json
 {
   "fetched_at_utc": "2026-11-02T00:00:00+00:00",
-  "decodo_calls": 1,
+  "data_calls": 1,
   "requested_symbols": 1,
   "successful_symbols": 1,
   "results": [{
@@ -76,10 +76,14 @@ Example response shape (illustrative data):
     "data": [{"timestamp": 1704067200, "time_utc": "2024-01-01T00:00:00+00:00", "close": 100}],
     "coverage_verified": false,
     "warnings": [],
-    "error": null
+    "any_error": null
   }]
 }
 ```
+
+`data_calls` counts the single upstream client request attempt for the processed
+batch; it is not a billable-credit count. Each result uses `any_error` for its
+error message; HTTP-level failures continue to use the `detail` field.
 
 HTTP errors: `401` invalid credentials, `422` invalid input, `503` missing server
 configuration, `502` upstream HTTP/timeout/format failure. Upstream failures never
