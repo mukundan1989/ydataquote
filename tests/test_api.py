@@ -200,3 +200,30 @@ def test_history_has_no_prepost_parameter(upstream):
     query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
     assert query['includePrePost'] == ['false']
     session.post.assert_called_once()
+
+
+
+def test_rapidapi_spec_is_clean_and_does_not_mutate_private_schema(upstream):
+    session, _ = upstream
+    public = client.get('/rapidapi-openapi.json').json()
+    assert public['openapi'] == '3.0.3'
+    assert set(public['paths']) == {'/v1/quotes', '/v1/history'}
+    assert public['servers'] == [{'url': 'https://ydataquote.vercel.app'}]
+    assert 'securitySchemes' not in public['components']
+    assert 'security' not in public
+    for path in public['paths'].values():
+        assert 'security' not in path['get']
+    assert 'X-API-Key' not in json.dumps(public)
+    assert 'X-RapidAPI-Proxy-Secret' not in json.dumps(public)
+    internal = client.get('/openapi.json').json()
+    schemes = internal['components']['securitySchemes']
+    assert schemes['DirectTestKey']['name'] == 'X-API-Key'
+    assert schemes['RapidAPIProxySecret']['name'] == 'X-RapidAPI-Proxy-Secret'
+    assert client.get('/v1/quotes?symbols=AAPL').status_code == 401
+    session.post.assert_not_called()
+
+
+def test_checked_in_rapidapi_spec_matches_live_builder():
+    from pathlib import Path
+    saved = json.loads((Path(__file__).resolve().parents[1] / 'openapi.json').read_text())
+    assert saved == client.get('/rapidapi-openapi.json').json()

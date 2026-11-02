@@ -2,30 +2,10 @@
   "openapi": "3.0.3",
   "info": {
     "title": "YDataQuote",
-    "description": "Latest available prices and historical close series for 1\u201320 symbols through Yahoo Spark. One admitted data request makes one Decodo POST; no retries, OHLCV or hourly quotas. Prices may be delayed. Upstream availability and historical coverage are not guaranteed.",
+    "description": "Latest available stock prices and historical daily close prices for 1\u201320 symbols. Choose a period or start/end dates for history. Results are timestamped JSON. Historical interval is 1d only. Prices may be delayed; coverage is not guaranteed. Authenticate using your RapidAPI subscription key through the RapidAPI gateway.",
     "version": "1.0.0"
   },
   "paths": {
-    "/health": {
-      "get": {
-        "tags": [
-          "Health"
-        ],
-        "summary": "Health",
-        "description": "Process health only; makes no Decodo call.",
-        "operationId": "health_health_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/quotes": {
       "get": {
         "tags": [
@@ -34,11 +14,6 @@
         "summary": "Quotes",
         "description": "Latest timestamped quote metadata or latest valid one-minute close, including extended hours.",
         "operationId": "quotes_v1_quotes_get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "symbols",
@@ -86,11 +61,6 @@
         "summary": "History",
         "description": "Daily close-price series (1d only). Supply period OR both start/end.\n\nDate mode forwards period1/period2 to Spark and filters returned points to [start,end).\nCoverage is not verified; unsupported requests fail without fallback or extra calls.",
         "operationId": "history_v1_history_get",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "period",
@@ -464,13 +434,11 @@
         ],
         "title": "ValidationError"
       }
-    },
-    "securitySchemes": {
-      "APIKeyHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key"
-      }
     }
-  }
+  },
+  "servers": [
+    {
+      "url": "https://ydataquote.vercel.app"
+    }
+  ]
 }

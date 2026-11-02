@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from services.decodo import ConfigurationError, fetch_spark
 from services.spark import UpstreamError, parse_history, parse_quotes, utc
+from services.openapi import rapidapi_schema
 
 app = FastAPI(title='YDataQuote', version='1.0.0', description=(
     'Latest available prices and historical close series for 1–20 symbols through Yahoo Spark. '
@@ -82,8 +83,8 @@ class HistoryResponse(BatchResponse):
     results: list[HistoryResult]
 
 
-proxy_header = APIKeyHeader(name='X-RapidAPI-Proxy-Secret', auto_error=False)
-test_header = APIKeyHeader(name='X-API-Key', auto_error=False)
+proxy_header = APIKeyHeader(name='X-RapidAPI-Proxy-Secret', scheme_name='RapidAPIProxySecret', auto_error=False)
+test_header = APIKeyHeader(name='X-API-Key', scheme_name='DirectTestKey', auto_error=False)
 
 
 def authorize(proxy: str | None = Depends(proxy_header), key: str | None = Depends(test_header)):
@@ -166,3 +167,9 @@ def history(symbols: list[str] = Depends(parse_symbols),
         end_ts = int(datetime.combine(end, datetime.min.time(), timezone.utc).timestamp())
         query.update(period1=start_ts, period2=end_ts)
     return run(symbols, query, history=True, start=start_ts, end=end_ts)
+
+
+@app.get('/rapidapi-openapi.json', include_in_schema=False)
+def rapidapi_openapi():
+    """Import this public specification into RapidAPI; no upstream calls."""
+    return rapidapi_schema(app.openapi())

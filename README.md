@@ -127,16 +127,18 @@ Official deployment documentation: https://vercel.com/docs/frameworks/backend/fa
 ## Connect RapidAPI
 
 1. Add an API in the Provider Dashboard and import `openapi.json` from this repo
-   (or download the live `/openapi.json`).
+   (or download the live `/rapidapi-openapi.json`). Do not import `/openapi.json`,
+   which describes private direct testing and retains its authentication controls.
 2. Set the deployed production Vercel URL as the API's base URL.
 3. Configure the two GET endpoints and describe the 20-symbol limit and close-only
    response. The specification lists the accepted query parameters.
 4. Copy the proxy secret from RapidAPI's Security settings to the Vercel
    `RAPIDAPI_PROXY_SECRET` environment variable and redeploy.
 5. Subscribers use their RapidAPI key; RapidAPI adds `X-RapidAPI-Proxy-Secret` when
-   forwarding. That secret is not a subscriber parameter. The imported schema's
-   `X-API-Key` option is for private direct testing only; remove it from the public
-   listing if needed. To disallow direct testing, delete `API_KEY` after setup.
+   forwarding. The import specification excludes both private authentication headers;
+   subscribers do not enter your `API_KEY`, proxy secret, or Decodo key. Keep the
+   default RapidAPI gateway authentication enabled in the listing. To disallow
+   direct testing, delete `API_KEY` after setup and redeploy.
 6. Test quotes, period history, custom dates, and partial failures through the
    gateway before publishing. Configure subscription pricing separately; this app
    implements no hourly rate limit.
@@ -144,6 +146,20 @@ Official deployment documentation: https://vercel.com/docs/frameworks/backend/fa
 Data endpoints require at least one configured credential. With both configured,
 a matching proxy secret OR private test key authorizes the request. Public docs
 and health do not authorize paid upstream fetches. Keep all real keys out of Git.
+
+## API specifications
+
+- `/docs` and `/openapi.json`: direct testing documentation with separate named
+  authentication schemes for `X-API-Key` and the proxy secret. Either configured
+  credential is accepted; backend authorization is always enforced.
+- `/rapidapi-openapi.json` and repository `openapi.json`: subscriber-facing
+  OpenAPI 3.0 document with only the two data endpoints, the deployed base URL,
+  and no private authentication schemes. RapidAPI supplies its gateway auth.
+- Regenerate the checked-in import file after endpoint changes:
+  `python -m scripts.export_openapi`. The live import document uses the same
+  builder, so private credentials are not reintroduced during regeneration.
+- If you already imported an earlier file, replace/update its definition in
+  RapidAPI and remove any leftover private header requirements there.
 
 ## Verification
 
