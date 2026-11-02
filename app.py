@@ -20,15 +20,7 @@ app = FastAPI(title='YDataQuote', version='1.0.0', description=(
 
 
 class Interval(str, Enum):
-    m1 = '1m'
-    m5 = '5m'
-    m15 = '15m'
-    m30 = '30m'
-    m60 = '60m'
-    h1 = '1h'
     d1 = '1d'
-    wk1 = '1wk'
-    mo1 = '1mo'
 
 
 class Period(str, Enum):
@@ -152,7 +144,7 @@ def history(symbols: list[str] = Depends(parse_symbols),
             start: Annotated[date | None, Query(description='Inclusive UTC date')] = None,
             end: Annotated[date | None, Query(description='Exclusive UTC date')] = None,
             interval: Interval = Interval.d1, prepost: bool = False):
-    """Close-price series. Supply period OR both start/end. Yahoo retention/interval limits apply.
+    """Daily close-price series (1d only). Supply period OR both start/end.
 
     Date mode forwards period1/period2 to Spark and filters returned points to [start,end).
     Coverage is not verified; unsupported requests fail without fallback or extra calls.

@@ -84,7 +84,7 @@
           "Prices"
         ],
         "summary": "History",
-        "description": "Close-price series. Supply period OR both start/end. Yahoo retention/interval limits apply.\n\nDate mode forwards period1/period2 to Spark and filters returned points to [start,end).\nCoverage is not verified; unsupported requests fail without fallback or extra calls.",
+        "description": "Daily close-price series (1d only). Supply period OR both start/end.\n\nDate mode forwards period1/period2 to Spark and filters returned points to [start,end).\nCoverage is not verified; unsupported requests fail without fallback or extra calls.",
         "operationId": "history_v1_history_get",
         "security": [
           {
@@ -319,15 +319,7 @@
       "Interval": {
         "type": "string",
         "enum": [
-          "1m",
-          "5m",
-          "15m",
-          "30m",
-          "60m",
-          "1h",
-          "1d",
-          "1wk",
-          "1mo"
+          "1d"
         ],
         "title": "Interval"
       },

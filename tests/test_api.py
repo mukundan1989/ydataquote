@@ -164,3 +164,27 @@ def test_missing_decodo_key_zero_posts(upstream, monkeypatch):
     monkeypatch.delenv('DECODO_API_TOKEN', raising=False)
     assert get('/v1/quotes', symbols='AAPL').status_code == 503
     session.post.assert_not_called()
+
+
+@pytest.mark.parametrize('interval', ['1m', '5m', '15m', '30m', '60m', '1h', '1wk', '1mo'])
+def test_history_rejects_non_daily_intervals_without_call(upstream, interval):
+    session, _ = upstream
+    assert get('/v1/history', symbols='AAPL', period='1y', interval=interval).status_code == 422
+    session.post.assert_not_called()
+
+
+@pytest.mark.parametrize('explicit', [False, True])
+def test_history_daily_default_and_explicit(upstream, explicit):
+    session, _ = upstream
+    params = dict(symbols='AAPL', period='1y')
+    if explicit:
+        params['interval'] = '1d'
+    assert get('/v1/history', **params).status_code == 200
+    session.post.assert_called_once()
+    query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
+    assert query['interval'] == ['1d']
+
+
+def test_history_schema_only_offers_daily():
+    schema = client.get('/openapi.json').json()
+    assert schema['components']['schemas']['Interval']['enum'] == ['1d']
