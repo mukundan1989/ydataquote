@@ -46,7 +46,6 @@ GET /v1/history?symbols=AAPL,MSFT&start=2023-01-01&end=2026-11-01&interval=1d
 | `period` | `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max` |
 | `start`, `end` | Supply both instead of period; UTC dates, start inclusive and end exclusive |
 | `interval` | `1d` only (daily closes); default `1d`. Other intervals return HTTP 422 before any Decodo call. |
-| `prepost` | Include extended-hours series; default `false` |
 
 Date mode forwards Unix `period1`/`period2` to Spark, then filters returned points
 to `[start,end)`. Period mode forwards `range`. No automatic date expansion,

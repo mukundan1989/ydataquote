@@ -188,3 +188,15 @@ def test_history_daily_default_and_explicit(upstream, explicit):
 def test_history_schema_only_offers_daily():
     schema = client.get('/openapi.json').json()
     assert schema['components']['schemas']['Interval']['enum'] == ['1d']
+
+
+
+def test_history_has_no_prepost_parameter(upstream):
+    session, _ = upstream
+    schema = client.get('/openapi.json').json()
+    params = schema['paths']['/v1/history']['get']['parameters']
+    assert 'prepost' not in [p['name'] for p in params]
+    assert get('/v1/history', symbols='AAPL', period='1y').status_code == 200
+    query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
+    assert query['includePrePost'] == ['false']
+    session.post.assert_called_once()

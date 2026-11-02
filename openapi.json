@@ -140,16 +140,6 @@
             }
           },
           {
-            "name": "prepost",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Prepost"
-            }
-          },
-          {
             "name": "symbols",
             "in": "query",
             "required": true,

@@ -143,7 +143,7 @@ def history(symbols: list[str] = Depends(parse_symbols),
             period: Annotated[Period | None, Query(description='Use instead of start/end dates')] = None,
             start: Annotated[date | None, Query(description='Inclusive UTC date')] = None,
             end: Annotated[date | None, Query(description='Exclusive UTC date')] = None,
-            interval: Interval = Interval.d1, prepost: bool = False):
+            interval: Interval = Interval.d1):
     """Daily close-price series (1d only). Supply period OR both start/end.
 
     Date mode forwards period1/period2 to Spark and filters returned points to [start,end).
@@ -153,7 +153,7 @@ def history(symbols: list[str] = Depends(parse_symbols),
         raise HTTPException(422, 'Use period OR start/end, not both')
     if period is None and (start is None or end is None):
         raise HTTPException(422, 'Supply period or both start and end')
-    query = dict(interval=interval.value, includePrePost=str(prepost).lower())
+    query = dict(interval=interval.value, includePrePost='false')
     start_ts = end_ts = None
     if period is not None:
         query['range'] = period.value
