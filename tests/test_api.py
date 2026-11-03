@@ -258,14 +258,52 @@ def test_subscriber_response_fields(upstream, endpoint):
     body = response.json()
     assert body['data_calls'] == 1
     assert 'decodo_calls' not in body
-    assert body['results'][0]['any_error'] is None
+    assert 'any_error' not in body['results'][0]
     assert body['results'][1]['any_error']
     for result in body['results']:
-        assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & result.keys()
+        assert not {'status', 'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & result.keys()
     for document in ['/openapi.json', '/rapidapi-openapi.json']:
         schema = client.get(document).json()
         assert 'data_calls' in schema['components']['schemas']['QuoteResponse']['properties']
         for name in ['QuoteResult', 'HistoryResult']:
             properties = schema['components']['schemas'][name]['properties']
             assert 'any_error' in properties
-            assert not {'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & properties.keys()
+            assert not {'status', 'error', 'exchange_delay_minutes', 'price_source', 'market_session', 'price_age_seconds'} & properties.keys()
+
+
+
+@pytest.mark.parametrize('endpoint', ['/v1/quotes', '/v1/history'])
+def test_clean_success_and_failure_results_preserve_error_messages(upstream, endpoint):
+    params = {'symbols': 'AAPL,MISSING'}
+    if endpoint.endswith('history'):
+        params['period'] = '1y'
+    body = get(endpoint, **params).json()
+    assert body['successful_symbols'] == 1
+    assert 'status' not in body['results'][0]
+    assert 'status' not in body['results'][1]
+    assert 'any_error' not in body['results'][0]
+    assert isinstance(body['results'][1]['any_error'], str)
+    assert body['results'][1]['any_error']
+    if endpoint.endswith('quotes'):
+        assert body['results'][0]['currency'] == 'USD'
+        assert body['results'][0]['price_time_utc']
+        assert body['results'][1]['price'] is None
+    else:
+        assert len(body['results'][0]['data']) == 3
+        assert body['results'][1]['data'] == []
+
+
+def test_history_with_skipped_values_has_no_public_partial_status(upstream):
+    session, response = upstream
+    data = payload(('AAPL',))
+    data['spark']['result'][0]['response'][0]['indicators']['quote'][0]['close'] = [100, None, 104]
+    response.iter_content.return_value = [json.dumps({'results': [
+        {'status_code': 200, 'content': data}]}).encode()]
+    body = get('/v1/history', symbols='AAPL', period='1y').json()
+    result = body['results'][0]
+    assert [point['close'] for point in result['data']] == [100, 104]
+    assert result['warnings']
+    assert 'status' not in result
+    assert 'any_error' not in result
+    assert body['successful_symbols'] == 1
+    session.post.assert_called_once()

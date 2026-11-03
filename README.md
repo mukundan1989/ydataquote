@@ -19,6 +19,7 @@ No public proxy pool, OHLCV, database, scheduled fetches, or hourly quotas.
   internal retries/accounting and upstream availability are outside this API.
 - Every distinct requested symbol has a result, including omitted/invalid symbols.
   HTTP 200 means the response was processed, not that every symbol succeeded.
+  Check `successful_symbols`, returned prices, and any `any_error` messages.
 
 ### Latest prices
 
@@ -28,7 +29,8 @@ GET /v1/quotes?symbols=AAPL,MSFT
 
 Requests `range=1d&interval=1m&includePrePost=true`. Selects the newest valid
 regular/pre/post market metadata price or one-minute candle close. Results include
-`price`, `price_time_utc`, `currency`, and `any_error`.
+`price`, `price_time_utc`, and `currency`. `any_error` is included only when
+a symbol fails; successful results omit it. Per-symbol `status` is not returned.
 Prices may be delayed or from a previous session. Candle timestamps
 identify an interval, not necessarily the precise trade time.
 
@@ -56,9 +58,9 @@ result has `coverage_verified: false`. Returned bars retain Yahoo close values
 without additional adjustment. The latest bar may still be forming.
 
 Each history result contains `data` objects with `timestamp` (Unix seconds),
-`time_utc`, and `close`. Missing/invalid values are omitted with a `partial` status
-and warnings; no data yields status `error`. `any_error` is null on success or
-an explanatory message on failure. No open/high/low/volume fields are returned.
+`time_utc`, and `close`. Missing/invalid values are omitted with warnings.
+Per-symbol `status` is not returned. `any_error` appears only when no valid
+prices are returned, with an explanatory message; null error fields are omitted. No open/high/low/volume fields are returned.
 
 Example response shape (illustrative data):
 
@@ -70,13 +72,11 @@ Example response shape (illustrative data):
   "successful_symbols": 1,
   "results": [{
     "symbol": "AAPL",
-    "status": "ok",
     "currency": "USD",
     "exchange_timezone": "America/New_York",
     "data": [{"timestamp": 1704067200, "time_utc": "2024-01-01T00:00:00+00:00", "close": 100}],
     "coverage_verified": false,
-    "warnings": [],
-    "any_error": null
+    "warnings": []
   }]
 }
 ```

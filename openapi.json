@@ -228,10 +228,6 @@
             "type": "string",
             "title": "Symbol"
           },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
           "currency": {
             "title": "Currency",
             "type": "string",
@@ -269,7 +265,6 @@
         "type": "object",
         "required": [
           "symbol",
-          "status",
           "data",
           "coverage_verified",
           "warnings"
@@ -342,10 +337,6 @@
             "type": "string",
             "title": "Symbol"
           },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
           "price": {
             "title": "Price",
             "type": "number",
@@ -369,8 +360,7 @@
         },
         "type": "object",
         "required": [
-          "symbol",
-          "status"
+          "symbol"
         ],
         "title": "QuoteResult"
       },

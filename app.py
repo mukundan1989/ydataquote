@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel
+from pydantic import BaseModel, model_serializer
 
 from services.decodo import ConfigurationError, fetch_spark
 from services.spark import UpstreamError, parse_history, parse_quotes, utc
@@ -38,9 +38,17 @@ class Period(str, Enum):
     maximum = 'max'
 
 
-class QuoteResult(BaseModel):
+class PriceResult(BaseModel):
+    @model_serializer(mode='wrap')
+    def serialize_result(self, handler):
+        result = handler(self)
+        if result.get('any_error') is None:
+            result.pop('any_error', None)
+        return result
+
+
+class QuoteResult(PriceResult):
     symbol: str
-    status: str
     price: float | None = None
     price_time_utc: str | None = None
     currency: str | None = None
@@ -53,9 +61,8 @@ class ClosePoint(BaseModel):
     close: float
 
 
-class HistoryResult(BaseModel):
+class HistoryResult(PriceResult):
     symbol: str
-    status: str
     currency: str | None = None
     exchange_timezone: str | None = None
     data: list[ClosePoint]
