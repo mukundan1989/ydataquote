@@ -8,7 +8,7 @@ No public proxy pool, OHLCV, database, scheduled fetches, or hourly quotas.
 ## Request contract
 
 - Two separate endpoints: `GET /v1/quotes` and `GET /v1/history`.
-- `symbols`: required comma-separated list, 1–20 entries, normalized to uppercase.
+- `symbols`: required comma-separated symbols. Add up to 20 symbols, normalized to uppercase.
   Duplicates are removed. More than 20 supplied entries are rejected.
 - One authenticated, validated and configured data request makes **one Decodo
   POST containing one multi-symbol Yahoo Spark URL**, including on upstream
@@ -43,7 +43,7 @@ GET /v1/history?symbols=AAPL,MSFT&start=2023-01-01&end=2026-11-01&interval=1d
 
 | Parameter | Meaning |
 |---|---|
-| `symbols` | Required; maximum 20 comma-separated entries |
+| `symbols` | Required. Comma-separated symbols. Add up to 20 symbols. |
 | `period` | `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max` |
 | `start`, `end` | Supply both instead of period; UTC dates, start inclusive and end exclusive |
 | `interval` | `1d` only (daily closes); default `1d`. Other intervals return HTTP 422 before any Decodo call. |

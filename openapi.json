@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Y Fin Latest Quote",
-    "description": "Latest available stock prices and historical daily close prices for 1\u201320 symbols. Choose a period or start/end dates for history. Results are timestamped JSON. Historical interval is 1d only. Prices may be delayed; coverage is not guaranteed. Authenticate using your RapidAPI subscription key through the RapidAPI gateway.",
+    "description": "Latest available stock prices and historical daily close prices for 1–20 symbols. Choose a period or start/end dates for history. Results are timestamped JSON. Historical interval is 1d only. Prices may be delayed; coverage is not guaranteed. Authenticate using your RapidAPI subscription key through the RapidAPI gateway.",
     "version": "1.0.0"
   },
   "paths": {
@@ -23,10 +23,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024,
-              "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26.",
+              "description": "Comma-separated symbols. Add up to 20 symbols.",
               "title": "Symbols"
             },
-            "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26."
+            "description": "Comma-separated symbols. Add up to 20 symbols."
           }
         ],
         "responses": {
@@ -117,10 +117,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024,
-              "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26.",
+              "description": "Comma-separated symbols. Add up to 20 symbols.",
               "title": "Symbols"
             },
-            "description": "Comma-separated Yahoo symbols; 1\u201320 entries. URL-encode & as %26."
+            "description": "Comma-separated symbols. Add up to 20 symbols."
           }
         ],
         "responses": {

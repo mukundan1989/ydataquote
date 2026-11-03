@@ -104,7 +104,7 @@ def authorize(proxy: str | None = Depends(proxy_header), key: str | None = Depen
 
 
 def parse_symbols(symbols: Annotated[str, Query(min_length=1, max_length=1024,
-                  description='Comma-separated Yahoo symbols; 1–20 entries. URL-encode & as %26.')]):
+                  description='Comma-separated symbols. Add up to 20 symbols.')]):
     entries = [s.strip().upper() for s in symbols.split(',')]
     if not 1 <= len(entries) <= 20 or any(not re.fullmatch(r'[A-Z0-9^][A-Z0-9.^=\-&]{0,39}', s) for s in entries):
         raise HTTPException(422, 'Supply 1–20 comma-separated Yahoo symbols, without empty entries')
