@@ -7,10 +7,7 @@ def rapidapi_schema(internal_schema):
     schema['openapi'] = '3.0.3'
     schema['servers'] = [{'url': 'https://ydataquote.vercel.app'}]
     schema['info']['description'] = (
-        'Latest available stock prices and historical daily close prices for 1–20 symbols. '
-        'Choose a period or start/end dates for history. Results are timestamped JSON. '
-        'Historical interval is 1d only. Prices may be delayed; coverage is not guaranteed. '
-        'Authenticate using your RapidAPI subscription key through the RapidAPI gateway.')
+        'Fetch historical daily close prices. Choose either a period or a date range. You can fetch upto 20 symbols.')
     schema.pop('security', None)
     schema['components'].pop('securitySchemes', None)
     schema['paths'] = {path: item for path, item in schema['paths'].items()

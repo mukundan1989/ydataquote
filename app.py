@@ -139,7 +139,7 @@ def health():
 @app.get('/v1/quotes', response_model=QuoteResponse, dependencies=[Depends(authorize)],
          tags=['Stock Prices'], summary='Latest Stock Quotes', operation_id='LatestStockQuotes')
 def quotes(symbols: list[str] = Depends(parse_symbols)):
-    """Latest timestamped quote metadata or latest valid one-minute close, including extended hours."""
+    """Latest quotes with timestamp."""
     return run(symbols, dict(range='1d', interval='1m', includePrePost='true'))
 
 
