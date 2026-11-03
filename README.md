@@ -8,7 +8,7 @@ No public proxy pool, OHLCV, database, scheduled fetches, or hourly quotas.
 ## Request contract
 
 - Two separate endpoints: `GET /v1/quotes` and `GET /v1/history`.
-- `symbols`: required comma-separated symbols. Add up to 20 symbols, normalized to uppercase.
+- `symbols`: required comma-separated symbols. Add up to 20 symbols, normalized to uppercase. Example: MSFT,TSLA,INFY.
   Duplicates are removed. More than 20 supplied entries are rejected.
 - One authenticated, validated and configured data request makes **one Decodo
   POST containing one multi-symbol Yahoo Spark URL**, including on upstream
@@ -43,10 +43,15 @@ GET /v1/history?symbols=AAPL,MSFT&start=2023-01-01&end=2026-11-01&interval=1d
 
 | Parameter | Meaning |
 |---|---|
-| `symbols` | Required. Comma-separated symbols. Add up to 20 symbols. |
-| `period` | `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max` |
-| `start`, `end` | Supply both instead of period; UTC dates, start inclusive and end exclusive |
-| `interval` | `1d` only (daily closes); default `1d`. Other intervals return HTTP 422 before any Decodo call. |
+| `symbols` | Required. Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY. |
+| `period` | Optional text box, prefilled `1y`. Options: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y`, `10y`, `ytd`, `max`. Ignored with a complete date range. |
+| `start`, `end` | Supply both; UTC dates, start inclusive and end exclusive. A complete date range overrides period. |
+| `interval` | Required text box, prefilled `1d`. Only `1d` (daily closes) is accepted. Missing or other values return HTTP 422 before any Decodo call. |
+
+Keep start/end dates empty to use period. Use either Period or Date Range.
+If both are filled, Date Range takes priority. If period and dates are omitted
+or blank, the backend uses `5d`; a supplied `1y` uses `1y`. A single date returns
+HTTP 422 asking for both dates.
 
 Date mode forwards Unix `period1`/`period2` to Spark, then filters returned points
 to `[start,end)`. Period mode forwards `range`. No automatic date expansion,

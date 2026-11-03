@@ -43,6 +43,8 @@ def upstream(monkeypatch):
 
 
 def get(path, **params):
+    if path == '/v1/history':
+        params.setdefault('interval', '1d')
     return client.get(path, params=params, headers={'X-API-Key': 'test-secret'})
 
 
@@ -70,7 +72,7 @@ def test_exactly_one_post_for_batch(upstream, count, endpoint):
 @pytest.mark.parametrize('params', [
     {'symbols': ''}, {'symbols': 'AAPL,'}, {'symbols': ','.join(f'T{i}' for i in range(21))},
     {'symbols': 'AAPL', 'period': '5y', 'start': '2023-01-01'},
-    {'symbols': 'AAPL'}, {'symbols': 'AAPL', 'start': '2023-01-01'},
+    {'symbols': 'AAPL', 'period': 'invalid'}, {'symbols': 'AAPL', 'start': '2023-01-01'},
     {'symbols': 'AAPL', 'start': '2024-02-01', 'end': '2023-01-01'},
     {'symbols': 'AAPL', 'period': '5y', 'interval': 'bad'},
     {'symbols': 'https://example.com', 'period': '5y'},
@@ -172,22 +174,31 @@ def test_history_rejects_non_daily_intervals_without_call(upstream, interval):
     session.post.assert_not_called()
 
 
-@pytest.mark.parametrize('explicit', [False, True])
-def test_history_daily_default_and_explicit(upstream, explicit):
+def test_history_daily_required(upstream):
     session, _ = upstream
-    params = dict(symbols='AAPL', period='1y')
-    if explicit:
-        params['interval'] = '1d'
-    assert get('/v1/history', **params).status_code == 200
-    session.post.assert_called_once()
-    query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
-    assert query['interval'] == ['1d']
+    result = client.get('/v1/history', params={'symbols': 'AAPL', 'period': '1y'},
+                        headers={'X-API-Key': 'test-secret'})
+    assert result.status_code == 422
+    session.post.assert_not_called()
 
 
-def test_history_schema_only_offers_daily():
-    schema = client.get('/openapi.json').json()
-    assert schema['components']['schemas']['Interval']['enum'] == ['1d']
-
+def test_history_schema_uses_text_fields_and_instructions():
+    for path in ['/openapi.json', '/rapidapi-openapi.json']:
+        schema = client.get(path).json()
+        params = {p['name']: p for p in schema['paths']['/v1/history']['get']['parameters']}
+        assert params['interval']['required'] is True
+        assert params['interval']['schema']['type'] == 'string'
+        assert params['interval']['schema']['default'] == '1d'
+        assert params['period']['required'] is False
+        assert params['period']['schema']['type'] == 'string'
+        assert params['period']['schema']['default'] == '1y'
+        for name in ['interval', 'period']:
+            assert 'enum' not in params[name]['schema']
+            assert '$ref' not in params[name]['schema']
+        assert 'Use either Period or Date Range.' in params['period']['description']
+        assert 'date range is considered' in params['start']['description']
+        assert 'date range is considered' in params['end']['description']
+        assert 'MSFT,TSLA,INFY' in params['symbols']['description']
 
 
 def test_history_has_no_prepost_parameter(upstream):
@@ -306,4 +317,33 @@ def test_history_with_skipped_values_has_no_public_partial_status(upstream):
     assert 'status' not in result
     assert 'any_error' not in result
     assert body['successful_symbols'] == 1
+    session.post.assert_called_once()
+
+
+
+@pytest.mark.parametrize('period', ['1y', '5d', 'invalid', ''])
+def test_complete_dates_override_period(upstream, period):
+    session, _ = upstream
+    response = get('/v1/history', symbols='AAPL', period=period,
+                   start='2024-01-01', end='2024-01-03')
+    assert response.status_code == 200
+    query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
+    assert query['period1'] == ['1704067200']
+    assert query['period2'] == ['1704240000']
+    assert 'range' not in query
+    session.post.assert_called_once()
+
+
+@pytest.mark.parametrize('extras,expected', [
+    ({}, '5d'), ({'period': ''}, '5d'),
+    ({'period': ' ', 'start': '', 'end': ''}, '5d'),
+    ({'period': '1y', 'start': '', 'end': ''}, '1y'),
+    ({'period': ' 2y '}, '2y'),
+])
+def test_period_selection_and_fallback(upstream, extras, expected):
+    session, _ = upstream
+    assert get('/v1/history', symbols='AAPL', **extras).status_code == 200
+    query = parse_qs(urlparse(session.post.call_args.kwargs['json']['url']).query)
+    assert query['range'] == [expected]
+    assert query['interval'] == ['1d']
     session.post.assert_called_once()

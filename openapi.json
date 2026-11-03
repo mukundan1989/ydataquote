@@ -23,10 +23,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024,
-              "description": "Comma-separated symbols. Add up to 20 symbols.",
+              "description": "Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY.",
               "title": "Symbols"
             },
-            "description": "Comma-separated symbols. Add up to 20 symbols."
+            "description": "Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY."
           }
         ],
         "responses": {
@@ -59,55 +59,58 @@
           "Stock Prices"
         ],
         "summary": "Historical Daily Close Prices",
-        "description": "Daily close-price series (1d only). Supply period OR both start/end.\n\nDate mode forwards period1/period2 to Spark and filters returned points to [start,end).\nCoverage is not verified; unsupported requests fail without fallback or extra calls.",
+        "description": "Fetch historical daily close prices. Choose either a period or a date range.\n\nA complete date range overrides period. Empty period and dates use 5d.\nYou can fetch up to 20 symbols. Interval must be 1d.",
         "operationId": "HistoricalDailyClosePrices",
         "parameters": [
+          {
+            "name": "interval",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Available option: 1d (daily closes only).",
+              "default": "1d",
+              "title": "Interval"
+            },
+            "description": "Available option: 1d (daily closes only)."
+          },
           {
             "name": "period",
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Use instead of start/end dates",
-              "title": "Period",
-              "$ref": "#/components/schemas/Period",
-              "nullable": true
+              "type": "string",
+              "description": "Available options: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max. Keep start/end dates empty if you want to return values for this period. Use either Period or Date Range. Ignored when both dates are provided. The form is prefilled with 1y; if period and dates are empty, 5d is used.",
+              "default": "1y",
+              "title": "Period"
             },
-            "description": "Use instead of start/end dates"
+            "description": "Available options: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max. Keep start/end dates empty if you want to return values for this period. Use either Period or Date Range. Ignored when both dates are provided. The form is prefilled with 1y; if period and dates are empty, 5d is used."
           },
           {
             "name": "start",
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Inclusive UTC date",
+              "description": "Inclusive UTC date (YYYY-MM-DD). If both date range and period boxes are filled, date range is considered. Use either period or date range.",
               "title": "Start",
               "type": "string",
               "format": "date",
               "nullable": true
             },
-            "description": "Inclusive UTC date"
+            "description": "Inclusive UTC date (YYYY-MM-DD). If both date range and period boxes are filled, date range is considered. Use either period or date range."
           },
           {
             "name": "end",
             "in": "query",
             "required": false,
             "schema": {
-              "description": "Exclusive UTC date",
+              "description": "Exclusive UTC date (YYYY-MM-DD). If both date range and period boxes are filled, date range is considered. Use either period or date range.",
               "title": "End",
               "type": "string",
               "format": "date",
               "nullable": true
             },
-            "description": "Exclusive UTC date"
-          },
-          {
-            "name": "interval",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "$ref": "#/components/schemas/Interval",
-              "default": "1d"
-            }
+            "description": "Exclusive UTC date (YYYY-MM-DD). If both date range and period boxes are filled, date range is considered. Use either period or date range."
           },
           {
             "name": "symbols",
@@ -117,10 +120,10 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 1024,
-              "description": "Comma-separated symbols. Add up to 20 symbols.",
+              "description": "Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY.",
               "title": "Symbols"
             },
-            "description": "Comma-separated symbols. Add up to 20 symbols."
+            "description": "Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY."
           }
         ],
         "responses": {
@@ -270,30 +273,6 @@
           "warnings"
         ],
         "title": "HistoryResult"
-      },
-      "Interval": {
-        "type": "string",
-        "enum": [
-          "1d"
-        ],
-        "title": "Interval"
-      },
-      "Period": {
-        "type": "string",
-        "enum": [
-          "1d",
-          "5d",
-          "1mo",
-          "3mo",
-          "6mo",
-          "1y",
-          "2y",
-          "5y",
-          "10y",
-          "ytd",
-          "max"
-        ],
-        "title": "Period"
       },
       "QuoteResponse": {
         "properties": {

@@ -3,12 +3,11 @@ import os
 import re
 import secrets
 from datetime import date, datetime, timezone
-from enum import Enum
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, model_serializer
+from pydantic import BaseModel, BeforeValidator, model_serializer
 
 from services.decodo import ConfigurationError, fetch_spark
 from services.spark import UpstreamError, parse_history, parse_quotes, utc
@@ -20,22 +19,17 @@ app = FastAPI(title='Y Fin Latest Quote', version='1.0.2', description=(
     'Prices may be delayed. Upstream availability and historical coverage are not guaranteed.'))
 
 
-class Interval(str, Enum):
-    d1 = '1d'
-
-
-class Period(str, Enum):
-    d1 = '1d'
-    d5 = '5d'
-    mo1 = '1mo'
-    mo3 = '3mo'
-    mo6 = '6mo'
-    y1 = '1y'
-    y2 = '2y'
-    y5 = '5y'
-    y10 = '10y'
-    ytd = 'ytd'
-    maximum = 'max'
+AVAILABLE_PERIODS = ('1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max')
+PERIOD_DESCRIPTION = (
+    'Available options: ' + ', '.join(AVAILABLE_PERIODS) + '. '
+    'Keep start/end dates empty if you want to return values for this period. '
+    'Use either Period or Date Range. Ignored when both dates are provided. '
+    'The form is prefilled with 1y; if period and dates are empty, 5d is used.')
+DATE_RANGE_DESCRIPTION = (
+    'If both date range and period boxes are filled, date range is considered. '
+    'Use either period or date range.')
+InputDate = Annotated[date | None, BeforeValidator(
+    lambda value: None if isinstance(value, str) and not value.strip() else value)]
 
 
 class PriceResult(BaseModel):
@@ -104,7 +98,7 @@ def authorize(proxy: str | None = Depends(proxy_header), key: str | None = Depen
 
 
 def parse_symbols(symbols: Annotated[str, Query(min_length=1, max_length=1024,
-                  description='Comma-separated symbols. Add up to 20 symbols.')]):
+                  description='Comma-separated symbols. Add up to 20 symbols. Example: MSFT,TSLA,INFY.')]):
     entries = [s.strip().upper() for s in symbols.split(',')]
     if not 1 <= len(entries) <= 20 or any(not re.fullmatch(r'[A-Z0-9^][A-Z0-9.^=\-&]{0,39}', s) for s in entries):
         raise HTTPException(422, 'Supply 1–20 comma-separated Yahoo symbols, without empty entries')
@@ -145,25 +139,27 @@ def quotes(symbols: list[str] = Depends(parse_symbols)):
 
 @app.get('/v1/history', response_model=HistoryResponse, dependencies=[Depends(authorize)],
          tags=['Stock Prices'], summary='Historical Daily Close Prices', operation_id='HistoricalDailyClosePrices')
-def history(symbols: list[str] = Depends(parse_symbols),
-            period: Annotated[Period | None, Query(description='Use instead of start/end dates')] = None,
-            start: Annotated[date | None, Query(description='Inclusive UTC date')] = None,
-            end: Annotated[date | None, Query(description='Exclusive UTC date')] = None,
-            interval: Interval = Interval.d1):
-    """Daily close-price series (1d only). Supply period OR both start/end.
+def history(request: Request, symbols: list[str] = Depends(parse_symbols), *,
+            interval: Annotated[str, Query(
+                description='Available option: 1d (daily closes only).',
+                json_schema_extra={'default': '1d'})],
+            period: Annotated[str, Query(description=PERIOD_DESCRIPTION)] = '1y',
+            start: Annotated[InputDate, Query(description=(
+                'Inclusive UTC date (YYYY-MM-DD). ' + DATE_RANGE_DESCRIPTION))] = None,
+            end: Annotated[InputDate, Query(description=(
+                'Exclusive UTC date (YYYY-MM-DD). ' + DATE_RANGE_DESCRIPTION))] = None):
+    """Fetch historical daily close prices. Choose either a period or a date range.
 
-    Date mode forwards period1/period2 to Spark and filters returned points to [start,end).
-    Coverage is not verified; unsupported requests fail without fallback or extra calls.
+    A complete date range overrides period. Empty period and dates use 5d.
+    You can fetch up to 20 symbols. Interval must be 1d.
     """
-    if period is not None and (start is not None or end is not None):
-        raise HTTPException(422, 'Use period OR start/end, not both')
-    if period is None and (start is None or end is None):
-        raise HTTPException(422, 'Supply period or both start and end')
-    query = dict(interval=interval.value, includePrePost='false')
+    if interval != '1d':
+        raise HTTPException(422, 'Only interval 1d is supported')
+    if (start is None) != (end is None):
+        raise HTTPException(422, 'Supply both start and end dates')
+    query = dict(interval='1d', includePrePost='false')
     start_ts = end_ts = None
-    if period is not None:
-        query['range'] = period.value
-    else:
+    if start is not None and end is not None:
         if start < date(1970, 1, 1) or start >= end:
             raise HTTPException(422, 'Dates must satisfy 1970-01-01 <= start < end')
         if start > datetime.now(timezone.utc).date():
@@ -171,6 +167,12 @@ def history(symbols: list[str] = Depends(parse_symbols),
         start_ts = int(datetime.combine(start, datetime.min.time(), timezone.utc).timestamp())
         end_ts = int(datetime.combine(end, datetime.min.time(), timezone.utc).timestamp())
         query.update(period1=start_ts, period2=end_ts)
+    else:
+        # A displayed default is distinct from an omitted query parameter.
+        selected_period = (period.strip() if 'period' in request.query_params else '') or '5d'
+        if selected_period not in AVAILABLE_PERIODS:
+            raise HTTPException(422, 'Available periods: ' + ', '.join(AVAILABLE_PERIODS))
+        query['range'] = selected_period
     return run(symbols, query, history=True, start=start_ts, end=end_ts)
 
 
