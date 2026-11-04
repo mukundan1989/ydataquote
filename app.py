@@ -13,7 +13,7 @@ from services.decodo import ConfigurationError, fetch_spark
 from services.spark import UpstreamError, parse_history, parse_quotes, utc
 from services.openapi import rapidapi_schema
 
-app = FastAPI(title='Y Fin Latest Quote', version='1.0.2', description=(
+app = FastAPI(title='Y Fin Latest Quote', version='1.0.3', description=(
     'Latest available prices and historical close series for 1–20 symbols through Yahoo Spark. '
     'One admitted data request makes one Decodo POST; no retries, OHLCV or hourly quotas. '
     'Prices may be delayed. Upstream availability and historical coverage are not guaranteed.'))

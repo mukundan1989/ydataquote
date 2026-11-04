@@ -3,7 +3,7 @@
   "info": {
     "title": "Y Fin Latest Quote",
     "description": "Fetch historical daily close prices. Choose either a period or a date range. You can fetch upto 20 symbols.",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "paths": {
     "/v1/quotes": {
